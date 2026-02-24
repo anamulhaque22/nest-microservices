@@ -8,20 +8,36 @@ async function bootstrap() {
   const logger = new Logger('SearchBootstrap');
   const port = Number(process.env.SEARCH_TCP_PORT ?? 4012);
 
+  const rmqpUrl = process.env.RABBITMQ_URL;
+  const queue = process.env.MEDIA_QUEUE;
+
+  if (!rmqpUrl) {
+    throw new Error('RABBITMQ_URL is not defined');
+  }
+
+  if (!queue) {
+    throw new Error('CATALOG_QUEUE is not defined');
+  }
+
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     SearchModule,
     {
-      transport: Transport.TCP,
+      transport: Transport.RMQ,
       options: {
-        host: '0.0.0.0',
-        port,
+        urls: [rmqpUrl],
+        queue,
+        queueOptions: {
+          durable: false,
+        },
       },
     },
   );
 
   app.enableShutdownHooks();
-  app.listen();
+  await app.listen();
 
-  logger.log(`Search microservice (TCP) is listening on ${port}`);
+  logger.log(
+    `Search microservice (RMQ) is listening on queue ${queue} via ${rmqpUrl}`,
+  );
 }
 bootstrap();
